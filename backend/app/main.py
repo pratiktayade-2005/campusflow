@@ -6,6 +6,9 @@ from app.database import Base, engine, get_db
 from app import models, schemas
 from app.security import hash_password, verify_password, create_access_token
 
+from fastapi.security import OAuth2PasswordBearer
+from app.security import decode_access_token
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -18,6 +21,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.security import HTTPBearer
+
+oauth2_scheme = HTTPBearer()
+
+def get_current_user(token=Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    payload = decode_access_token(token.credentials)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user_id = payload.get("sub")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return user
 
 @app.get("/")
 def root():
@@ -50,3 +68,7 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
 
     token = create_access_token(str(user.id), user.role)
     return {"access_token": token, "token_type": "bearer"}
+
+@app.get("/auth/me", response_model=schemas.UserOut)
+def get_me(current_user: models.User = Depends(get_current_user)):
+    return current_user

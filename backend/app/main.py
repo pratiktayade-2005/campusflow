@@ -72,3 +72,38 @@ def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
 @app.get("/auth/me", response_model=schemas.UserOut)
 def get_me(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+
+@app.post("/students/me", response_model=schemas.StudentOut, status_code=201)
+def create_student_profile(
+    payload: schemas.StudentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    existing = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Student profile already exists")
+
+    new_student = models.Student(
+        user_id=current_user.id,
+        roll_number=payload.roll_number,
+        branch=payload.branch,
+        graduation_year=payload.graduation_year,
+        cgpa=payload.cgpa,
+        backlogs=payload.backlogs,
+    )
+    db.add(new_student)
+    db.commit()
+    db.refresh(new_student)
+    return new_student
+
+
+@app.get("/students/me", response_model=schemas.StudentOut)
+def get_my_student_profile(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    student = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+    return student

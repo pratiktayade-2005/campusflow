@@ -49,3 +49,21 @@ class StudentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class CompanyCreate(BaseModel):
+    name: str
+    description: str | None = None
+    website: str | None = None
+    location: str | None = None
+
+
+class CompanyOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str | None
+    website: str | None
+    location: str | None
+    status: str
+
+    class Config:
+        from_attributes = True

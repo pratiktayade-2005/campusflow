@@ -107,3 +107,33 @@ def get_my_student_profile(
     if not student:
         raise HTTPException(status_code=404, detail="Student profile not found")
     return student
+
+
+@app.post("/companies", response_model=schemas.CompanyOut, status_code=201)
+def create_company(
+    payload: schemas.CompanyCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "RECRUITER":
+        raise HTTPException(status_code=403, detail="Only recruiters can create companies")
+
+    existing = db.query(models.Company).filter(models.Company.name == payload.name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Company with this name already exists")
+
+    new_company = models.Company(
+        name=payload.name,
+        description=payload.description,
+        website=payload.website,
+        location=payload.location,
+    )
+    db.add(new_company)
+    db.commit()
+    db.refresh(new_company)
+    return new_company
+
+
+@app.get("/companies", response_model=list[schemas.CompanyOut])
+def list_companies(db: Session = Depends(get_db)):
+    return db.query(models.Company).all()

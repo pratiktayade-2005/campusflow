@@ -27,3 +27,27 @@ class Student(Base):
     backlogs = Column(Integer, default=0)
     resume_path = Column(String, nullable=True)
 
+
+class Company(Base):
+    __tablename__ = "companies"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, unique=True, nullable=False)
+    description = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    status = Column(String, default="PENDING")  # PENDING, APPROVED, REJECTED
+
+
+class Job(Base):
+    __tablename__ = "jobs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
+    title = Column(String, nullable=False)
+    package_lpa = Column(Numeric(6, 2), nullable=True)
+    location = Column(String, nullable=True)
+    min_cgpa = Column(Numeric(3, 2), default=0)
+    max_backlogs = Column(Integer, default=0)
+    allowed_branches = Column(String, nullable=True)  # comma-separated for now, e.g. "CSE,IT,ECE"
+    status = Column(String, default="DRAFT")  # DRAFT, PUBLISHED, CLOSED

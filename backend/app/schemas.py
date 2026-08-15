@@ -67,3 +67,28 @@ class CompanyOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class JobCreate(BaseModel):
+    company_id: uuid.UUID
+    title: str
+    package_lpa: Decimal | None = None
+    location: str | None = None
+    min_cgpa: Decimal = 0
+    max_backlogs: int = 0
+    allowed_branches: str | None = None  # e.g. "CSE,IT,ECE"
+
+
+class JobOut(BaseModel):
+    id: uuid.UUID
+    company_id: uuid.UUID
+    title: str
+    package_lpa: Decimal | None
+    location: str | None
+    min_cgpa: Decimal
+    max_backlogs: int
+    allowed_branches: str | None
+    status: str
+
+    class Config:
+        from_attributes = True

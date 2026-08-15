@@ -137,3 +137,36 @@ def create_company(
 @app.get("/companies", response_model=list[schemas.CompanyOut])
 def list_companies(db: Session = Depends(get_db)):
     return db.query(models.Company).all()
+
+
+@app.post("/jobs", response_model=schemas.JobOut, status_code=201)
+def create_job(
+    payload: schemas.JobCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "RECRUITER":
+        raise HTTPException(status_code=403, detail="Only recruiters can post jobs")
+
+    company = db.query(models.Company).filter(models.Company.id == payload.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    new_job = models.Job(
+        company_id=payload.company_id,
+        title=payload.title,
+        package_lpa=payload.package_lpa,
+        location=payload.location,
+        min_cgpa=payload.min_cgpa,
+        max_backlogs=payload.max_backlogs,
+        allowed_branches=payload.allowed_branches,
+    )
+    db.add(new_job)
+    db.commit()
+    db.refresh(new_job)
+    return new_job
+
+
+@app.get("/jobs", response_model=list[schemas.JobOut])
+def list_jobs(db: Session = Depends(get_db)):
+    return db.query(models.Job).all()

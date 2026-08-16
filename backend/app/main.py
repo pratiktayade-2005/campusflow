@@ -9,6 +9,8 @@ from app.security import hash_password, verify_password, create_access_token
 from fastapi.security import OAuth2PasswordBearer
 from app.security import decode_access_token
 
+from app.eligibility import check_eligibility
+import uuid
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -170,3 +172,22 @@ def create_job(
 @app.get("/jobs", response_model=list[schemas.JobOut])
 def list_jobs(db: Session = Depends(get_db)):
     return db.query(models.Job).all()
+
+@app.get("/jobs/{job_id}/check-eligibility")
+def check_job_eligibility(
+    job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "STUDENT":
+        raise HTTPException(status_code=403, detail="Only students can check their own eligibility")
+
+    student = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return check_eligibility(student, job)

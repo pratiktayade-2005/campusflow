@@ -1,6 +1,7 @@
 import uuid
 from pydantic import BaseModel,EmailStr
 from decimal import Decimal
+from datetime import datetime
 
 class UserRegister(BaseModel):
     email: EmailStr
@@ -89,6 +90,19 @@ class JobOut(BaseModel):
     max_backlogs: int
     allowed_branches: str | None
     status: str
+
+    class Config:
+        from_attributes = True
+
+class ApplicationCreate(BaseModel):
+    job_id: uuid.UUID
+
+class ApplicationOut(BaseModel):
+    id: uuid.UUID
+    student_id: uuid.UUID
+    job_id: uuid.UUID
+    status: str
+    applied_at: datetime
 
     class Config:
         from_attributes = True

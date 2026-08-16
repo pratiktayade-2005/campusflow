@@ -3,7 +3,8 @@ from sqlalchemy import Column, String, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
 from sqlalchemy import ForeignKey,Integer,Numeric
-
+from sqlalchemy import DateTime
+from sqlalchemy.sql import func
 
 class User(Base):
     __tablename__ = "users"
@@ -51,3 +52,17 @@ class Job(Base):
     max_backlogs = Column(Integer, default=0)
     allowed_branches = Column(String, nullable=True)  # comma-separated for now, e.g. "CSE,IT,ECE"
     status = Column(String, default="DRAFT")  # DRAFT, PUBLISHED, CLOSED
+
+
+from sqlalchemy import DateTime
+from sqlalchemy.sql import func
+
+
+class Application(Base):
+    __tablename__ = "applications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    student_id = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
+    status = Column(String, default="APPLIED")  # APPLIED, SHORTLISTED, REJECTED, SELECTED
+    applied_at = Column(DateTime(timezone=True), server_default=func.now())

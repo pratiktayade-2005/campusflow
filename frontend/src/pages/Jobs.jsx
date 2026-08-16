@@ -4,6 +4,7 @@ import api from "../api.js";
 function Jobs() {
   const [jobs, setJobs] = useState([]);
   const [results, setResults] = useState({});
+  const [applyMessages, setApplyMessages] = useState({});
 
   useEffect(() => {
     api.get("/jobs").then((res) => setJobs(res.data));
@@ -21,6 +22,18 @@ function Jobs() {
     }
   };
 
+  const applyToJob = async (jobId) => {
+    try {
+      await api.post("/applications", { job_id: jobId });
+      setApplyMessages({ ...applyMessages, [jobId]: "✅ Applied successfully!" });
+    } catch (error) {
+      setApplyMessages({
+        ...applyMessages,
+        [jobId]: error.response?.data?.detail || "Failed to apply",
+      });
+    }
+  };
+
   return (
     <div style={{ padding: "20px", fontFamily: "sans-serif" }}>
       <h3>Available Jobs</h3>
@@ -30,7 +43,9 @@ function Jobs() {
           <p>Package: {job.package_lpa} LPA | Location: {job.location}</p>
           <p>Min CGPA: {job.min_cgpa} | Max Backlogs: {job.max_backlogs}</p>
           <p>Allowed Branches: {job.allowed_branches}</p>
-          <button onClick={() => checkEligibility(job.id)}>Check My Eligibility</button>
+
+          <button onClick={() => checkEligibility(job.id)}>Check My Eligibility</button>{" "}
+          <button onClick={() => applyToJob(job.id)}>Apply</button>
 
           {results[job.id] && (
             <div style={{ marginTop: "10px" }}>
@@ -50,6 +65,8 @@ function Jobs() {
               )}
             </div>
           )}
+
+          {applyMessages[job.id] && <p>{applyMessages[job.id]}</p>}
         </div>
       ))}
     </div>

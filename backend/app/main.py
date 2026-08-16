@@ -191,3 +191,52 @@ def check_job_eligibility(
         raise HTTPException(status_code=404, detail="Job not found")
 
     return check_eligibility(student, job)
+
+
+
+@app.post("/applications", response_model=schemas.ApplicationOut, status_code=201)
+def apply_to_job(
+    payload: schemas.ApplicationCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "STUDENT":
+        raise HTTPException(status_code=403, detail="Only students can apply to jobs")
+
+    student = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+
+    job = db.query(models.Job).filter(models.Job.id == payload.job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    existing = (
+        db.query(models.Application)
+        .filter(models.Application.student_id == student.id, models.Application.job_id == job.id)
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="You already applied to this job")
+
+    eligibility = check_eligibility(student, job)
+    if not eligibility["eligible"]:
+        raise HTTPException(status_code=400, detail=f"Not eligible: {', '.join(eligibility['reasons'])}")
+
+    new_application = models.Application(student_id=student.id, job_id=job.id)
+    db.add(new_application)
+    db.commit()
+    db.refresh(new_application)
+    return new_application
+
+
+@app.get("/applications/me", response_model=list[schemas.ApplicationOut])
+def my_applications(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    student = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+
+    return db.query(models.Application).filter(models.Application.student_id == student.id).all()

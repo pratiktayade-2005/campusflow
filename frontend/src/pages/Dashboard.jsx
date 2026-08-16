@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import api from "../api.js";
 import StudentProfile from "./StudentProfile.jsx";
 import Jobs from "./Jobs.jsx";
+import OfficerDashboard from "./OfficerDashboard.jsx";
+
 function Dashboard() {
   const [user, setUser] = useState(null);
   const [error, setError] = useState("");
@@ -23,11 +25,13 @@ function Dashboard() {
       <p>Role: {user.role}</p>
 
       {user.role === "STUDENT" && (
-  <>
-    <StudentProfile />
-    <Jobs />
-  </>
-)}
+        <>
+          <StudentProfile />
+          <Jobs />
+        </>
+      )}
+
+      {user.role === "PLACEMENT_OFFICER" && <OfficerDashboard />}
     </div>
   );
 }

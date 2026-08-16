@@ -315,3 +315,138 @@ class RoleEnum(str, enum.Enum):
     PLACEMENT_OFFICER = "PLACEMENT_OFFICER"
     RECRUITER = "RECRUITER"
     ADMIN = "ADMIN"
+
+
+# ---------- Interviews ----------
+
+@app.post("/interviews", response_model=schemas.InterviewOut, status_code=201)
+def schedule_interview(
+    payload: schemas.InterviewCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "RECRUITER":
+        raise HTTPException(status_code=403, detail="Only recruiters can schedule interviews")
+
+    application = db.query(models.Application).filter(models.Application.id == payload.application_id).first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    new_interview = models.Interview(
+        application_id=payload.application_id,
+        scheduled_at=payload.scheduled_at,
+        mode=payload.mode,
+    )
+    db.add(new_interview)
+    application.status = "TECHNICAL_INTERVIEW"
+
+    student = db.query(models.Student).filter(models.Student.id == application.student_id).first()
+    notify = models.Notification(
+        user_id=student.user_id,
+        title="Interview Scheduled",
+        body=f"Your interview is scheduled at {payload.scheduled_at}",
+    )
+    db.add(notify)
+
+    db.commit()
+    db.refresh(new_interview)
+    return new_interview
+
+
+@app.get("/applications/{application_id}/interviews", response_model=list[schemas.InterviewOut])
+def get_interviews_for_application(
+    application_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return db.query(models.Interview).filter(models.Interview.application_id == application_id).all()
+
+
+# ---------- Offers ----------
+
+@app.post("/offers", response_model=schemas.OfferOut, status_code=201)
+def issue_offer(
+    payload: schemas.OfferCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "RECRUITER":
+        raise HTTPException(status_code=403, detail="Only recruiters can issue offers")
+
+    application = db.query(models.Application).filter(models.Application.id == payload.application_id).first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    existing = db.query(models.Offer).filter(models.Offer.application_id == payload.application_id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Offer already issued for this application")
+
+    new_offer = models.Offer(
+        application_id=payload.application_id,
+        package_lpa=payload.package_lpa,
+        role=payload.role,
+    )
+    db.add(new_offer)
+    application.status = "SELECTED"
+
+    student = db.query(models.Student).filter(models.Student.id == application.student_id).first()
+    notify = models.Notification(
+        user_id=student.user_id,
+        title="Offer Received!",
+        body=f"You received an offer for {payload.role} at {payload.package_lpa} LPA",
+    )
+    db.add(notify)
+
+    db.commit()
+    db.refresh(new_offer)
+    return new_offer
+
+
+@app.patch("/offers/{offer_id}/respond", response_model=schemas.OfferOut)
+def respond_to_offer(
+    offer_id: uuid.UUID,
+    accept: bool,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "STUDENT":
+        raise HTTPException(status_code=403, detail="Only students can respond to offers")
+
+    offer = db.query(models.Offer).filter(models.Offer.id == offer_id).first()
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+
+    offer.status = "ACCEPTED" if accept else "DECLINED"
+    db.commit()
+    db.refresh(offer)
+    return offer
+
+
+# ---------- Notifications ----------
+
+@app.get("/notifications/me", response_model=list[schemas.NotificationOut])
+def my_notifications(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return (
+        db.query(models.Notification)
+        .filter(models.Notification.user_id == current_user.id)
+        .order_by(models.Notification.created_at.desc())
+        .all()
+    )
+
+
+@app.patch("/notifications/{notification_id}/read")
+def mark_notification_read(
+    notification_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    notification = db.query(models.Notification).filter(models.Notification.id == notification_id).first()
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    notification.is_read = True
+    db.commit()
+    return {"message": "Marked as read"}

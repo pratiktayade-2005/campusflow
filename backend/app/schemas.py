@@ -101,3 +101,48 @@ class ApplicationOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class InterviewCreate(BaseModel):
+    application_id: uuid.UUID
+    scheduled_at: datetime
+    mode: str = "Online"
+
+
+class InterviewOut(BaseModel):
+    id: uuid.UUID
+    application_id: uuid.UUID
+    scheduled_at: datetime
+    mode: str
+    status: str
+
+    class Config:
+        from_attributes = True
+
+
+class OfferCreate(BaseModel):
+    application_id: uuid.UUID
+    package_lpa: Decimal
+    role: str
+
+
+class OfferOut(BaseModel):
+    id: uuid.UUID
+    application_id: uuid.UUID
+    package_lpa: Decimal
+    role: str
+    status: str
+    issued_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    body: str
+    is_read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

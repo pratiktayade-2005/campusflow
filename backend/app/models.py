@@ -105,3 +105,76 @@ class Notification(Base):
     body = Column(String, nullable=False)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Assessment(Base):
+    __tablename__ = "assessments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=False)
+    title = Column(String, nullable=False)
+    duration_minutes = Column(Integer, nullable=False)
+    passing_score = Column(Integer, nullable=False)
+
+
+class AssessmentQuestion(Base):
+    __tablename__ = "assessment_questions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    assessment_id = Column(UUID(as_uuid=True), ForeignKey("assessments.id"), nullable=False)
+    question_text = Column(String, nullable=False)
+    option_a = Column(String, nullable=False)
+    option_b = Column(String, nullable=False)
+    option_c = Column(String, nullable=False)
+    option_d = Column(String, nullable=False)
+    correct_option = Column(String, nullable=False)  # "A", "B", "C", or "D"
+    marks = Column(Integer, default=1)
+
+
+class StudentAnswer(Base):
+    __tablename__ = "student_answers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    application_id = Column(UUID(as_uuid=True), ForeignKey("applications.id"), nullable=False)
+    question_id = Column(UUID(as_uuid=True), ForeignKey("assessment_questions.id"), nullable=False)
+    selected_option = Column(String, nullable=False)
+    is_correct = Column(Boolean, nullable=False)
+
+
+
+class Faculty(Base):
+    __tablename__ = "faculty"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
+    department = Column(String, nullable=True)
+
+
+class Attendance(Base):
+    __tablename__ = "attendance"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    student_id = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
+    subject = Column(String, nullable=False)
+    total_classes = Column(Integer, nullable=False)
+    attended_classes = Column(Integer, nullable=False)
+
+
+class AcademicRecord(Base):
+    __tablename__ = "academic_records"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    student_id = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
+    semester = Column(Integer, nullable=False)
+    sgpa = Column(Numeric(3, 2), nullable=False)
+    backlogs = Column(Integer, default=0)
+
+
+class Announcement(Base):
+    __tablename__ = "announcements"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=False)
+    body = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

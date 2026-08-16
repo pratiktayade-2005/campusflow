@@ -11,6 +11,9 @@ from app.security import decode_access_token
 
 from app.eligibility import check_eligibility
 import uuid
+
+from fastapi import UploadFile,File
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -450,3 +453,285 @@ def mark_notification_read(
     notification.is_read = True
     db.commit()
     return {"message": "Marked as read"}
+
+
+
+# ---------- Assessments ----------
+
+@app.post("/assessments", response_model=schemas.AssessmentOut, status_code=201)
+def create_assessment(
+    payload: schemas.AssessmentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "RECRUITER":
+        raise HTTPException(status_code=403, detail="Only recruiters can create assessments")
+
+    new_assessment = models.Assessment(
+        job_id=payload.job_id,
+        title=payload.title,
+        duration_minutes=payload.duration_minutes,
+        passing_score=payload.passing_score,
+    )
+    db.add(new_assessment)
+    db.flush()  # generates new_assessment.id without a full commit yet
+
+    for q in payload.questions:
+        db.add(models.AssessmentQuestion(
+            assessment_id=new_assessment.id,
+            question_text=q.question_text,
+            option_a=q.option_a,
+            option_b=q.option_b,
+            option_c=q.option_c,
+            option_d=q.option_d,
+            correct_option=q.correct_option,
+            marks=q.marks,
+        ))
+
+    db.commit()
+    db.refresh(new_assessment)
+    return new_assessment
+
+
+@app.get("/jobs/{job_id}/assessment", response_model=schemas.AssessmentOut)
+def get_assessment_for_job(job_id: uuid.UUID, db: Session = Depends(get_db)):
+    assessment = db.query(models.Assessment).filter(models.Assessment.job_id == job_id).first()
+    if not assessment:
+        raise HTTPException(status_code=404, detail="No assessment found for this job")
+    return assessment
+
+
+@app.post("/assessments/submit", response_model=schemas.AssessmentResult)
+def submit_assessment(
+    payload: schemas.SubmitAssessment,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "STUDENT":
+        raise HTTPException(status_code=403, detail="Only students can submit assessments")
+
+    total_score = 0
+    total_marks = 0
+    passing_score = 0
+
+    for answer in payload.answers:
+        question = db.query(models.AssessmentQuestion).filter(
+            models.AssessmentQuestion.id == answer.question_id
+        ).first()
+        if not question:
+            continue
+
+        total_marks += question.marks
+        is_correct = answer.selected_option.upper() == question.correct_option.upper()
+        if is_correct:
+            total_score += question.marks
+
+        db.add(models.StudentAnswer(
+            application_id=payload.application_id,
+            question_id=answer.question_id,
+            selected_option=answer.selected_option,
+            is_correct=is_correct,
+        ))
+
+        assessment = db.query(models.Assessment).filter(
+            models.Assessment.id == question.assessment_id
+        ).first()
+        if assessment:
+            passing_score = assessment.passing_score
+
+    application = db.query(models.Application).filter(
+        models.Application.id == payload.application_id
+    ).first()
+    if application:
+        application.status = "ASSESSMENT"
+
+    db.commit()
+
+    return schemas.AssessmentResult(
+        score=total_score,
+        total_marks=total_marks,
+        passed=total_score >= passing_score,
+    )
+
+
+# ---------- Analytics ----------
+
+@app.get("/analytics/overview")
+def analytics_overview(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "PLACEMENT_OFFICER":
+        raise HTTPException(status_code=403, detail="Only placement officers can view analytics")
+
+    total_students = db.query(models.Student).count()
+    total_companies = db.query(models.Company).count()
+    total_jobs = db.query(models.Job).count()
+    total_applications = db.query(models.Application).count()
+    total_placed = db.query(models.Application).filter(models.Application.status == "SELECTED").count()
+
+    placement_rate = round((total_placed / total_students) * 100, 1) if total_students > 0 else 0
+
+    return {
+        "total_students": total_students,
+        "total_companies": total_companies,
+        "total_jobs": total_jobs,
+        "total_applications": total_applications,
+        "total_placed": total_placed,
+        "placement_rate": placement_rate,
+    }
+
+
+@app.get("/analytics/branch-wise")
+def analytics_branch_wise(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "PLACEMENT_OFFICER":
+        raise HTTPException(status_code=403, detail="Only placement officers can view analytics")
+
+    students = db.query(models.Student).all()
+    branch_stats = {}
+
+    for student in students:
+        branch = student.branch
+        if branch not in branch_stats:
+            branch_stats[branch] = {"total": 0, "placed": 0}
+        branch_stats[branch]["total"] += 1
+
+        applications = db.query(models.Application).filter(
+            models.Application.student_id == student.id,
+            models.Application.status == "SELECTED",
+        ).count()
+        if applications > 0:
+            branch_stats[branch]["placed"] += 1
+
+    result = []
+    for branch, stats in branch_stats.items():
+        rate = round((stats["placed"] / stats["total"]) * 100, 1) if stats["total"] > 0 else 0
+        result.append({"branch": branch, "total": stats["total"], "placed": stats["placed"], "placement_rate": rate})
+
+    return result
+
+
+
+# ---------- Faculty: Attendance ----------
+
+@app.post("/attendance", response_model=schemas.AttendanceOut, status_code=201)
+def add_attendance(
+    payload: schemas.AttendanceCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "FACULTY":
+        raise HTTPException(status_code=403, detail="Only faculty can record attendance")
+
+    record = models.Attendance(
+        student_id=payload.student_id,
+        subject=payload.subject,
+        total_classes=payload.total_classes,
+        attended_classes=payload.attended_classes,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+@app.get("/students/me/attendance", response_model=list[schemas.AttendanceOut])
+def my_attendance(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    student = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+    return db.query(models.Attendance).filter(models.Attendance.student_id == student.id).all()
+
+
+# ---------- Faculty: Academic Records ----------
+
+@app.post("/academic-records", response_model=schemas.AcademicRecordOut, status_code=201)
+def add_academic_record(
+    payload: schemas.AcademicRecordCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "FACULTY":
+        raise HTTPException(status_code=403, detail="Only faculty can add academic records")
+
+    record = models.AcademicRecord(
+        student_id=payload.student_id,
+        semester=payload.semester,
+        sgpa=payload.sgpa,
+        backlogs=payload.backlogs,
+    )
+    db.add(record)
+
+    # Keep the student's summary CGPA/backlogs in sync (used by the Eligibility Engine)
+    student = db.query(models.Student).filter(models.Student.id == payload.student_id).first()
+    if student:
+        student.cgpa = payload.sgpa
+        student.backlogs = payload.backlogs
+
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+# ---------- Announcements ----------
+
+@app.post("/announcements", response_model=schemas.AnnouncementOut, status_code=201)
+def create_announcement(
+    payload: schemas.AnnouncementCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role not in ["FACULTY", "PLACEMENT_OFFICER", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="Not authorized to post announcements")
+
+    announcement = models.Announcement(author_id=current_user.id, title=payload.title, body=payload.body)
+    db.add(announcement)
+    db.commit()
+    db.refresh(announcement)
+    return announcement
+
+
+@app.get("/announcements", response_model=list[schemas.AnnouncementOut])
+def list_announcements(db: Session = Depends(get_db)):
+    return db.query(models.Announcement).order_by(models.Announcement.created_at.desc()).all()
+
+
+# ---------- Resume Upload ----------
+
+import os
+import shutil
+
+UPLOAD_DIR = "uploads/resumes"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+@app.post("/students/me/resume")
+def upload_resume(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "STUDENT":
+        raise HTTPException(status_code=403, detail="Only students can upload a resume")
+
+    student = db.query(models.Student).filter(models.Student.user_id == current_user.id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student profile not found")
+
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    file_path = f"{UPLOAD_DIR}/{student.id}.pdf"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    student.resume_path = file_path
+    db.commit()
+
+    return {"message": "Resume uploaded successfully", "path": file_path}

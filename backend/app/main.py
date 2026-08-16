@@ -240,3 +240,64 @@ def my_applications(
         raise HTTPException(status_code=404, detail="Student profile not found")
 
     return db.query(models.Application).filter(models.Application.student_id == student.id).all()
+
+
+@app.patch("/companies/{company_id}/approve", response_model=schemas.CompanyOut)
+def approve_company(
+    company_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "PLACEMENT_OFFICER":
+        raise HTTPException(status_code=403, detail="Only placement officers can approve companies")
+
+    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    company.status = "APPROVED"
+    db.commit()
+    db.refresh(company)
+    return company
+
+
+@app.patch("/companies/{company_id}/reject", response_model=schemas.CompanyOut)
+def reject_company(
+    company_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "PLACEMENT_OFFICER":
+        raise HTTPException(status_code=403, detail="Only placement officers can reject companies")
+
+    company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    company.status = "REJECTED"
+    db.commit()
+    db.refresh(company)
+    return company
+
+
+
+@app.get("/officer/students", response_model=list[schemas.StudentOut])
+def list_all_students(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "PLACEMENT_OFFICER":
+        raise HTTPException(status_code=403, detail="Only placement officers can view all students")
+
+    return db.query(models.Student).all()
+
+
+@app.get("/officer/applications", response_model=list[schemas.ApplicationOut])
+def list_all_applications(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role != "PLACEMENT_OFFICER":
+        raise HTTPException(status_code=403, detail="Only placement officers can view all applications")
+
+    return db.query(models.Application).all()

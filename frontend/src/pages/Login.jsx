@@ -1,7 +1,7 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../api.js";
 
-function Login() {
+function Login({ onLoginSuccess }) {
   const [form, setForm] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
 
@@ -12,9 +12,10 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post("http://127.0.0.1:8000/auth/login", form);
+      const response = await api.post("/auth/login", form);
       localStorage.setItem("access_token", response.data.access_token);
-      setMessage("Login successful! Token saved.");
+      setMessage("Login successful!");
+      onLoginSuccess();
     } catch (error) {
       setMessage(error.response?.data?.detail || "Login failed");
     }

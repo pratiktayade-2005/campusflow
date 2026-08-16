@@ -2,18 +2,13 @@ import uuid
 from pydantic import BaseModel,EmailStr
 from decimal import Decimal
 from datetime import datetime
+from app.models import RoleEnum
 
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
     full_name: str
-    role: str
-
-class UserLogin(BaseModel):
-    emial: EmailStr
-    password: str
-    full_name: str
-    role: str
+    role: RoleEnum
 
 class UserLogin(BaseModel):
     email: EmailStr

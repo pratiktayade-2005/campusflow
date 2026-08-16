@@ -301,3 +301,17 @@ def list_all_applications(
         raise HTTPException(status_code=403, detail="Only placement officers can view all applications")
 
     return db.query(models.Application).all()
+
+
+
+
+import enum
+from sqlalchemy import Enum as SQLEnum
+
+
+class RoleEnum(str, enum.Enum):
+    STUDENT = "STUDENT"
+    FACULTY = "FACULTY"
+    PLACEMENT_OFFICER = "PLACEMENT_OFFICER"
+    RECRUITER = "RECRUITER"
+    ADMIN = "ADMIN"

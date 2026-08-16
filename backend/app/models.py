@@ -1,10 +1,18 @@
 import uuid
-from sqlalchemy import Column, String, Boolean
+import enum
+from sqlalchemy import Column, String, Boolean, ForeignKey, Integer, Numeric, DateTime, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
-from app.database import Base
-from sqlalchemy import ForeignKey,Integer,Numeric
-from sqlalchemy import DateTime
 from sqlalchemy.sql import func
+from app.database import Base
+
+
+class RoleEnum(str, enum.Enum):
+    STUDENT = "STUDENT"
+    FACULTY = "FACULTY"
+    PLACEMENT_OFFICER = "PLACEMENT_OFFICER"
+    RECRUITER = "RECRUITER"
+    ADMIN = "ADMIN"
+
 
 class User(Base):
     __tablename__ = "users"
@@ -13,8 +21,9 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=False)
-    role = Column(String, nullable=False)
+    role = Column(SQLEnum(RoleEnum, name="role_enum"), nullable=False)
     is_active = Column(Boolean, default=True)
+
 
 class Student(Base):
     __tablename__ = "students"
@@ -52,10 +61,6 @@ class Job(Base):
     max_backlogs = Column(Integer, default=0)
     allowed_branches = Column(String, nullable=True)  # comma-separated for now, e.g. "CSE,IT,ECE"
     status = Column(String, default="DRAFT")  # DRAFT, PUBLISHED, CLOSED
-
-
-from sqlalchemy import DateTime
-from sqlalchemy.sql import func
 
 
 class Application(Base):

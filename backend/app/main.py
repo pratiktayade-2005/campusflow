@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
-from app.config import UPLOAD_DIR
+from app.config import UPLOAD_DIR, ALLOWED_ORIGINS
 from app.routers import (
     auth, students, companies, jobs, applications, interviews,
     offers, assessments, announcements, notifications, analytics, faculty, users,
@@ -22,7 +22,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

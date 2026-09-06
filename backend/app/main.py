@@ -8,8 +8,9 @@ from app.database import Base, engine
 from app.config import UPLOAD_DIR, ALLOWED_ORIGINS
 from app.routers import (
     auth, students, companies, jobs, applications, interviews,
-    offers, assessments, announcements, notifications, analytics, faculty, users,
+    offers, announcements, notifications, analytics, faculty, users,
 )
+
 
 Base.metadata.create_all(bind=engine)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -37,7 +38,6 @@ app.include_router(jobs.router)
 app.include_router(applications.router)
 app.include_router(interviews.router)
 app.include_router(offers.router)
-app.include_router(assessments.router)
 app.include_router(announcements.router)
 app.include_router(notifications.router)
 app.include_router(analytics.router)

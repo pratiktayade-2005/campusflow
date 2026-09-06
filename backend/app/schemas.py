@@ -8,7 +8,6 @@ from pydantic import BaseModel, EmailStr, ConfigDict
 from app.models import RoleEnum
 
 
-# ---------- Auth ----------
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
@@ -43,7 +42,6 @@ class Token(BaseModel):
     user: UserOut
 
 
-# ---------- Student ----------
 class StudentUpdate(BaseModel):
     branch: Optional[str] = None
     graduation_year: Optional[int] = None
@@ -72,7 +70,6 @@ class StudentWithUser(StudentOut):
     email: str
 
 
-# ---------- Company ----------
 class CompanyCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -94,7 +91,6 @@ class CompanyOut(BaseModel):
     status: str
 
 
-# ---------- Job ----------
 class JobCreate(BaseModel):
     title: str
     description: Optional[str] = None
@@ -134,7 +130,6 @@ class JobWithCompany(JobOut):
     already_applied: Optional[bool] = None
 
 
-# ---------- Application ----------
 class ApplicationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -168,7 +163,6 @@ class StatusUpdate(BaseModel):
     status: str
 
 
-# ---------- Interview ----------
 class InterviewCreate(BaseModel):
     application_id: uuid.UUID
     scheduled_at: datetime
@@ -203,7 +197,6 @@ class InterviewDetail(InterviewOut):
     student_name: Optional[str] = None
 
 
-# ---------- Offer ----------
 class OfferCreate(BaseModel):
     application_id: uuid.UUID
     package_lpa: Decimal
@@ -232,54 +225,6 @@ class OfferRespond(BaseModel):
     accept: bool
 
 
-# ---------- Assessment ----------
-class QuestionCreate(BaseModel):
-    question_text: str
-    option_a: str
-    option_b: str
-    option_c: str
-    option_d: str
-    correct_option: str
-    marks: int = 1
-
-
-class AssessmentCreate(BaseModel):
-    title: str
-    duration_minutes: int = 30
-    passing_score: int = 50
-    questions: List[QuestionCreate]
-
-
-class QuestionPublic(BaseModel):
-    id: uuid.UUID
-    question_text: str
-    option_a: str
-    option_b: str
-    option_c: str
-    option_d: str
-    marks: int
-
-
-class AssessmentPublic(BaseModel):
-    id: uuid.UUID
-    title: str
-    duration_minutes: int
-    passing_score: int
-    total_marks: int
-    questions: List[QuestionPublic]
-
-
-class AssessmentSubmit(BaseModel):
-    answers: dict[uuid.UUID, str]
-
-
-class AssessmentResult(BaseModel):
-    score: int
-    total_marks: int
-    passed: bool
-
-
-# ---------- Announcement ----------
 class AnnouncementCreate(BaseModel):
     title: str
     body: str
@@ -292,15 +237,13 @@ class AnnouncementOut(BaseModel):
     author_id: uuid.UUID
     title: str
     body: str
-    audience: str  # stored as comma-separated roles, e.g. "STUDENT,FACULTY"
-    created_at: datetime
+    audience: str 
 
 
 class AnnouncementDetail(AnnouncementOut):
     author_name: str
 
 
-# ---------- Notification ----------
 class NotificationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -310,7 +253,6 @@ class NotificationOut(BaseModel):
     created_at: datetime
 
 
-# ---------- Analytics ----------
 class OfficerStats(BaseModel):
     total_students: int
     total_companies: int

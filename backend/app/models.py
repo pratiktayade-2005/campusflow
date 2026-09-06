@@ -105,7 +105,6 @@ class Job(Base):
 
     company = relationship("Company", back_populates="jobs")
     applications = relationship("Application", back_populates="job")
-    assessment = relationship("Assessment", back_populates="job", uselist=False)
 
 
 class Application(Base):
@@ -153,44 +152,6 @@ class Offer(Base):
 
     application = relationship("Application", back_populates="offer")
 
-
-class Assessment(Base):
-    __tablename__ = "assessments"
-
-    id = uuid_col()
-    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), unique=True, nullable=False)
-    title = Column(String, nullable=False)
-    duration_minutes = Column(Integer, default=30)
-    passing_score = Column(Integer, default=50)
-
-    job = relationship("Job", back_populates="assessment")
-    questions = relationship("AssessmentQuestion", back_populates="assessment")
-
-
-class AssessmentQuestion(Base):
-    __tablename__ = "assessment_questions"
-
-    id = uuid_col()
-    assessment_id = Column(UUID(as_uuid=True), ForeignKey("assessments.id"), nullable=False)
-    question_text = Column(Text, nullable=False)
-    option_a = Column(String, nullable=False)
-    option_b = Column(String, nullable=False)
-    option_c = Column(String, nullable=False)
-    option_d = Column(String, nullable=False)
-    correct_option = Column(String, nullable=False)
-    marks = Column(Integer, default=1)
-
-    assessment = relationship("Assessment", back_populates="questions")
-
-
-class AssessmentAttempt(Base):
-    __tablename__ = "assessment_attempts"
-
-    id = uuid_col()
-    application_id = Column(UUID(as_uuid=True), ForeignKey("applications.id"), unique=True, nullable=False)
-    score = Column(Integer, default=0)
-    total_marks = Column(Integer, default=0)
-    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class Announcement(Base):
